@@ -1,0 +1,64 @@
+version: 2.1
+
+orbs:
+  aws-ecr: circleci/aws-ecr@6.1.0
+
+jobs:
+  unit_test:
+    docker:
+      - image: circleci/node:10
+    working_directory: ~/repo
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - v1-dependencies-{{ checksum "package.json" }}
+            # fallback to using the latest cache if no exact match is found
+            - v1-dependencies-
+      - run: yarn install
+      - save_cache:
+          paths:
+            - node_modules
+          key: v1-dependencies-{{ checksum "package.json" }}
+      # run tests!
+      - run: yarn test
+  deploy_K8S:
+    docker:
+      - image: 722827431602.dkr.ecr.ap-southeast-1.amazonaws.com/rancher-ng3c:latest
+        aws_auth:
+          aws_access_key_id: $AWS_ACCESS_KEY_ID
+          aws_secret_access_key: $AWS_SECRET_ACCESS_KEY
+    steps:
+      - checkout
+      - run:
+          name: 'Replace :latest tag to :git hash tag'
+          command: |
+            sed -i "s/:latest/:$CIRCLE_SHA1/g" k8s/dev/deployment.yaml
+      - run:
+          name: 'K8S APPLY'
+          command: |
+            kubectl apply -f k8s/dev
+workflows:
+  buildpush_deploy:
+    jobs:
+      # - unit_test
+      - aws-ecr/build-and-push-image:
+          aws-access-key-id: AWS_ACCESS_KEY_ID
+          aws-secret-access-key: AWS_SECRET_ACCESS_KEY
+          region: AWS_REGION
+          account-url: AWS_ECR_ACCOUNT_URL
+          repo: demoregis
+          dockerfile: Dockerfile
+          tag: $CIRCLE_SHA1
+          path: .
+          # requires:
+          #   - unit_test
+          filters:
+            branches:
+              only: demo
+      - deploy_K8S:
+          requires:
+            - aws-ecr/build-and-push-image
+          filters:
+            branches:
+              only: demo

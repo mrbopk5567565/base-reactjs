@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: client-regis-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      component: web-regis
+  template:
+    metadata:
+      labels:
+        component: web-regis
+    spec:
+      containers:
+        - name: client-regis
+          image: 722827431602.dkr.ecr.ap-southeast-1.amazonaws.com/demoregis:latest
+          ports:
+            - containerPort: 80

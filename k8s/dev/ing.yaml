@@ -1,0 +1,15 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: client-regis-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+    - host: register.monk8s.com
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: client-regis-cluster-ip-service
+              servicePort: 80
